@@ -1,0 +1,55 @@
+name: MPPSC Website Monitor
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Telegram Test
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python -c "import os,requests; r=requests.post(f'https://api.telegram.org/bot{os.environ[\"BOT_TOKEN\"]}/sendMessage',data={'chat_id':os.environ['CHAT_ID'],'text':'✅ MPPSC MONITOR CONNECTED!\n\n🤖 Telegram Bot: @Smpltd_bot\n🔗 GitHub Actions: Connected\n🌐 MPPSC Monitor: Ready'},timeout=30); r.raise_for_status()"
+
+      - name: Check MPPSC website
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python monitor.py
+
+      - name: Save monitoring state
+        run: |
+          git config user.name "MPPSC Monitor Bot"
+          git config user.email "actions@github.com"
+
+          git add mppsc_state.json
+
+          if git diff --cached --quiet; then
+            echo "No state changes to save."
+          else
+            git commit -m "Update MPPSC monitoring state"
+            git push
+          fi
